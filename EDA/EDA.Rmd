@@ -1,0 +1,188 @@
+---
+title: "MVA-Exploratory Data Analysis (EDA): Visualization"
+output: html_document
+date: "2024-02-16"
+---
+
+#Questions 
+
+1) What are the common loan amounts that the borrower's request?
+
+2) Highest frequency of Loan grade?
+
+3) Variation of loan amounts requested by borrowers across different loan grades?
+4) How does the observed variation in loan amounts requested by borrowers across different loan grades contribute to the creditworthiness?
+5) Do higher loan amounts correspond to higher or lower loan percent incomes?
+6) Common loan amount and loan percent income combinations within the dataset.
+
+```{r}
+library(readr)
+dataset<- read_csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+
+```
+```{r}
+str(dataset)
+```
+
+```{r}
+boxplot(dataset$person_income)
+boxplot(dataset[,4:8])
+boxplot(dataset$loan_percent_income)
+```
+
+#Insights:
+
+Boxplot of person income and loan percent income shows an outlier.
+The median for loan amount is close to 24000, with bottom edge of 10000 and top edge of 25000.
+The median for loan percent income is close to 0.25, with bottom edge of 0.1 and top edge of 0.35.
+
+```{r}
+stars(dataset,labels = dataset$loan_status)
+```
+
+#Correlation matrix
+
+```{r}
+library(ggcorrplot)
+correlation_matrix<- cor(dataset[,0:8])
+ggcorrplot(correlation_matrix,type = "lower", lab = TRUE)
+
+```
+
+#Insights:
+
+By looking at the correlation matrix we can understand the magnitude and direction of relationship between two variables.Closer the value to 1 the stronger the relationship. Negative value indicates that the direction is opposite. 
+
+1) Here, value -0.65 for person_income vs loan_percent_income indicates a moderate-strong relationship and an inverse relationship.One variable increases, the other variable decreases, and vice versa.
+
+2) Value 0.71 for loan_status vs loan_percent_income indicates a strong relationship and a positive correlation.
+3) Value 0.38 for loan_amnt vs loan_percent_income indicates a moderate-strong relationship and a positive correlation. 
+4) Value 0.25 for loan_amnt vs person_income indicates a weak relationship and a positive correlation. 
+
+
+```{r}
+# MAX AND MIN AGE
+max_age <- max(dataset$person_age, na.rm = TRUE)
+min_age <- min(dataset$person_age, na.rm = TRUE)
+cat("Maximum Age:", max_age, "\n")
+cat("Minimum Age:", min_age, "\n")
+
+# People with an age between x and y
+age_group <- function(arr, dataset) {
+  for (i in seq_along(arr[-1])) {
+    age_min <- arr[i] + 1
+    age_max <- arr[i + 1]
+    num_people <- sum(dataset$person_age >= age_min & dataset$person_age < age_max, na.rm = TRUE)
+    cat("Age between", age_min, "and", age_max, ": Number of people", num_people, "\n")
+  }
+}
+
+age_group(c(0, 18, 26, 36, 46, 56, 66), dataset)
+
+
+```
+
+
+# Univariate visualizations
+1) Density plot of Loan Amount
+
+```{r}
+library(scales)
+density_loan_amount <- ggplot(dataset, aes(x = loan_amnt)) +
+  geom_density(fill = "grey") + labs(title = "Density Plot of Loan Amount") +
+  scale_y_continuous(labels = comma)+
+  xlab("Loan Amount") + ylab("Density")+theme_classic()
+
+print(density_loan_amount)
+```
+
+#Insights:
+The plot is skewed to the right. The peak of the density plot is somewhere around 25000. 
+The plot is continuous and widely spread. A wider spread suggests a greater range of loan amounts. 
+
+
+2) Bar plot of Loan Grade
+
+```{r}
+bar_loan_grade <- ggplot(dataset, aes(x = loan_grade)) +
+  geom_bar(fill = "lightgreen") +
+  labs(title = "Bar Plot of Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Frequency")+theme_bw()
+
+print(bar_loan_grade)
+```
+
+#Insights:
+
+Looking at the bar plot, we can understand Grade B is the highest in frequency while grade G is the least. 
+Further, this means that the number of borrowers who are relatively low-risk, but not as creditworthy as Grade A are the most in count. 
+
+The borrower's creditworthiness is moderate, that is grade C is more than the borrowers, grade A, who has the highest creditworthiness.
+
+
+#Bivariate Visuals
+
+1)Scatter Plot- Matrix
+
+```{r}
+library(GGally)
+ggscatmat(dataset, columns=3:6, color="loan_status")
+```
+
+
+
+
+2) Boxplot of Loan grade vs Loan amount
+
+```{r}
+boxplot_loan_grade_amount <- ggplot(dataset, aes(x = loan_grade, y = loan_amnt)) +
+  geom_boxplot(fill = "lightgreen") + 
+  labs(title = "Box Plot of Loan Amount by Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Loan Amount") + theme_bw()
+
+print(boxplot_loan_grade_amount)
+```
+
+#Insights:
+The plot shows, that the borrowers with loan grade D has most number of outliers when compared with the loan amount requested by them. This might also define why the borrower's is considered to have higher risk of creditworthiness. 
+
+
+
+3) Scatter plot of Loan amount vs loan percent income
+
+```{r}
+scatter_plot <- ggplot(dataset, aes(x = loan_amnt, y = loan_percent_income )) +
+  geom_point() +  # Add points
+  labs(x = "Loan Amount", y = "Loan Percent Income", title = "Scatter Plot of Loan Amount vs Loan Percent Income")
+plot(scatter_plot)
+```
+
+Scatter Plot of Loan amount vs loan percent income with loan grades colored 
+
+```{r}
+ggplot(dataset, aes(x = loan_amnt, y = loan_percent_income, color = loan_grade)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatter plot of Loan Amount vs. Loan Percent Income by Loan Grade",
+       x = "Loan Amount", y = "Loan Percent Income", color = "Loan Grade") +
+  theme_minimal()
+```
+
+#Insights:
+
+These is no linear relationship between loan amount and loan percent income.
+
+Points are more densely populated between loan amount 0-10000 and 22000-30000.
+
+Having a high loan percent income does not always corresponds to having a high loan amount. Borrowers who have requested Loan amounts of 5000-7000 also corresponds to high percentage of borrowers income. The same for borrowers requesting loan about of 25000 or greater. 
+
+
+
+```{r}
+library(lattice)
+xyplot(person_income ~ person_age | loan_grade, data = dataset)
+```
+
+
