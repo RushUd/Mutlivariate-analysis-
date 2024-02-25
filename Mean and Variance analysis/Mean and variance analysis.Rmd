@@ -1,0 +1,227 @@
+---
+title: "Mean and variance analysis"
+output: html_document
+date: "2024-02-23"
+---
+
+```{r}
+library(readr)
+raw_dataset<- read_csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+
+```
+```{r}
+str(raw_dataset)
+```
+Loading the dataset. 
+
+```{r}
+options(scipen = 999) # To suppress scientific notation 
+
+#dataset <- raw_dataset[,3:8]
+dataset_clean <- na.omit(raw_dataset)
+indvar_dataset <- dataset_clean[,2:8]
+```
+
+
+Univariate analysis 
+1) Finding means of each column
+2) Covariance matrix for all columns in the data
+3) Mahalanobis distances for each observation: To identify outlier or observations that are unusual relative to the overall distribution of the data. The distance is also used in clustering algorithms, like k-means clustering. 
+
+
+```{r}
+dataset_cm <- colMeans(indvar_dataset, na.rm = TRUE)
+dataset_cm
+
+dataset_S <- cov(indvar_dataset)
+dataset_S
+
+dataset_d <- apply(indvar_dataset, MARGIN = 1, function(indvar_dataset)t(indvar_dataset - dataset_cm) %*% solve(dataset_S) %*% (indvar_dataset - dataset_cm))
+dataset_d
+```
+
+
+Insights: 
+Correlation
+Average Income: The average person's income is approximately $104,516.41.
+Average Loan Amount: The average loan amount is approximately $19,726.53.
+Loan-to-Income Ratio: On average, loans represent about 25.63% of a person's income.
+
+Covariance between person_income and loan_amnt is indicates strong relationship between them. 
+
+Distance 
+Large distance = outlier / anomaly
+
+
+Lets find out if the dataset follows a particular distribution/ is normally distributed?
+--Applying qqnorm to three variables: person_income, loan_amnt, and loan_percent_income
+```{r}
+qqnorm(dataset_clean$person_income, main = "Person income")
+qqline(dataset_clean$person_income)
+
+qqnorm(dataset_clean$loan_amnt, main = "Loan amount")
+qqline(dataset_clean$loan_amnt)
+
+qqnorm(dataset_clean$loan_percent_income, main = "Loan to income ratio")
+qqline(dataset_clean$loan_percent_income)
+```
+
+Insight: 
+Loan amount is not normally distributed
+Person income is following the reference line at some points, while misses at some. 
+Loan to income ratio is normally distributed for most points at the centre, while misses some points at the start and end. 
+
+
+Test to find equality of variances between 2 groups of loan status. 
+```{r}
+var.test(raw_dataset$loan_status==0, raw_dataset$loan_status==1)
+```
+Insight: 
+p-value = 1, suggests that there is no significant difference in the variances between the two groups of loan status. 
+
+
+
+Performing t-test for each independent variable in the dataset, by comparing its means between two groups of loan status. 
+
+```{r}
+with(data=dataset_clean,t.test(person_income[loan_status==0],person_income[loan_status==1],var.equal=TRUE))
+```
+
+```{r}
+with(data=dataset_clean,t.test(person_emp_length[loan_status==0],person_emp_length[loan_status==1],var.equal=TRUE))
+```
+
+```{r}
+with(data=dataset_clean,t.test(loan_amnt[loan_status==0],loan_amnt[loan_status==1],var.equal=TRUE))
+```
+
+```{r}
+with(data=dataset_clean,t.test(loan_int_rate[loan_status==0],loan_int_rate[loan_status==1],var.equal=TRUE))
+```
+
+```{r}
+with(data=dataset_clean,t.test(loan_percent_income[loan_status==0],loan_percent_income[loan_status==1],var.equal=TRUE))
+```
+```{r}
+with(data=dataset_clean,t.test(cb_person_cred_hist_length[loan_status==0],cb_person_cred_hist_length[loan_status==1],var.equal=TRUE))
+```
+
+
+Insight: 
+p-value < 0.00000000000000022 (Shows the strongest evidence against the null hypothesis)
+p-value = 0.000009249 (Shows strong)
+That is reject the null hypothesis.
+
+p-value = 0.1021 (Fail to reject or accept the null hypothesis)
+
+
+
+
+Multivariate analysis: 
+Hotelling's T-squared test/ extension of the univariate t-test to multidimensional data.
+
+
+```{r}
+library(Hotelling)
+
+ 
+
+t2test <- hotelling.test(person_income + person_emp_length + loan_amnt + loan_int_rate + loan_percent_income + cb_person_cred_hist_length ~ loan_status, data = dataset_clean )
+cat("T2 statistic =", t2test$stat[[1]],"\n")
+print(t2test)
+```
+Insight: 
+T2 statistic of 645, measures how much the average values of multiple variables differ between the two groups in loan status. Larger T2 value indicates a greater difference between the group means in the multivariate space. In simple terms, stronger distinction between the groups based on the combination of variables being analyzed. 
+
+p-value = 0 suggests strong evidence against the null hypothesis. 
+Thus indicating significant differences between the group means in the multivariate space. That is there is something affecting and we cannot accept the null hypothesis.
+
+
+
+Levene's test--to find if the variance of independent variables differ significantly between different groups of loan status. 
+```{r}
+datastand <- scale(dataset_clean[,3:8])
+datastand
+```
+
+```{r}
+attach(dataset_clean)
+datanodef <- datastand[loan_status==0,]
+datanodef
+```
+
+
+Vector containing the median values of each column in the subset of data 
+
+```{r}
+datadef <- datastand[dataset_clean$loan_status==1,]
+vecmediannodef <- apply(datanodef, 2, median)
+vecmediannodef
+
+```
+
+The absolute deviations of each element in the datade 
+Subtracting the median values from the elements of datadef and then taking the absolute value of the differences.
+
+```{r}
+
+vecmediandef <- apply(datadef,2,median)
+matabsdevnodef <- abs(datanodef - matrix(rep(vecmediannodef,nrow(datanodef)),nrow=nrow(datanodef),byrow=TRUE))
+matabsdevdef <- abs(datadef - matrix(rep(vecmediandef,nrow(datadef)),nrow=nrow(datadef), byrow=TRUE))
+
+matabsdevdef
+
+```
+
+
+```{r}
+matabsdev.all <- rbind(matabsdevnodef, matabsdevdef)
+matabsdev.all <- data.frame(dataset_clean$loan_status, matabsdev.all)
+
+matabsdev.all
+```
+
+T-test for each independent variable 
+
+```{r}
+
+t.test(matabsdev.all$person_income[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$person_income[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+
+```{r}
+t.test(matabsdev.all$person_emp_length[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$person_emp_length[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+```{r}
+t.test(matabsdev.all$loan_amnt[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$loan_amnt[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+```{r}
+t.test(matabsdev.all$loan_percent_income[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$loan_percent_income[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+Insight: 
+p-value for personal_income is < 0.05. Thus, rejecting the null hypothesis. 
+
+The mean absolute deviation of non-defaulted loans is less than that of defaulted loans. 
+
+Statistical tests to compare the mean absolute deviations of certain variables between defaulted and non-defaulted loans, helping to understand if there are significant differences between the groups.
+
+
+```{r}
+#datastand
+```
+
+```{r}
+#datastand.all <- data.frame(dataset_clean$loan_status,datastand)
+#colnames(datastand.all) <- colnames(dataset_clean[3:8])
+#t2test <- hotelling.test(person_income + person_emp_length + loan_amnt + loan_int_rate + loan_percent_income + cb_person_cred_hist_length ~ dataset_clean$loan_status, data = datastand.all )
+#cat("T2 statistic =", t2test$stat[[1]],"\n")
+#print(t2test)
+```
+
+```{r}
+#datastand.all
+```
+
