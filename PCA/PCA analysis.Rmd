@@ -1,0 +1,235 @@
+---
+title: "PCA analysis"
+output: html_document
+date: "2024-03-01"
+---
+
+```{r}
+library(readr)
+unclean_data <- read_csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+dataset <- na.omit(unclean_data)
+var_data <- dataset[,2:8]
+str(dataset)
+```
+
+```{r}
+attach(var_data)
+cor(var_data[-1])
+```
+
+```{r}
+data_pca <- prcomp(var_data[,-1],scale=TRUE)
+data_pca
+```
+
+```{r}
+summary(data_pca)
+```
+1. Decide how many Principal Components (PCs) you want to keep and why (2 points)
+Answer: I want to keep PC1 PC2 and PC3, here is why
+PC1: highest standard deviation: captures the most variability in data: 29.2% of the total variance is captured
+PC2: highest standard deviation: captures the most variability in data: 23.06% of the total variance is captured
+PC3: lower amount than PC1 and PC2: captures 16.85% of the total variance: cumulative of PC1, PC2 and PC3 is 69.1%.
+
+PC4 to PC6 captures significantly less proportions of total variance. 
+
+
+```{r}
+(eigen_data <- data_pca$sdev^2)
+```
+Insight: We consider retaining principal components with eigenvalues greater than 1.
+
+```{r}
+names(eigen_data) <- paste("PC",1:6,sep="")
+eigen_data
+```
+
+```{r}
+sumlambdas <- sum(eigen_data)
+sumlambdas
+```
+
+```{r}
+propvar <- eigen_data/sumlambdas
+propvar
+```
+
+```{r}
+cumvar_data <- cumsum(propvar)
+cumvar_data
+```
+
+```{r}
+matlambdas <- rbind(sqrt(eigen_data),propvar,cumvar_data)
+rownames(matlambdas) <- c("Eigenvalues","Prop. variance","Cum. prop. variance")
+round(matlambdas,4)
+```
+
+```{r}
+summary(data_pca)
+```
+2. Explain the variate representation each PCs
+
+```{r}
+data_pca$rotation
+```
+
+```{r}
+print(data_pca)
+```
+Insight: 
+PC1 positively correlated with person_income person_emp_length and cb_person_cred_hist_length, thus PC1 captures information about the overall financial status, employment length, and credit history.
+loan_percent_income has a strong negative correlation with PC1, thus higher loan amounts relative to income are associated with lower values of PC1.
+
+Similarily, PC2 is positively correlated with cb_person_cred_hist_length, strong negative correlation with loan_ammt and negatively correlated with all the other columns. 
+PC3 is positively correlated with person_emp_length, strong negative correlation with cb_person_cred_hist_length and negatively with all other columns. 
+
+```{r}
+data_pca$x
+```
+
+```{r}
+#Identify the score by the loan status
+datatyp_pca <- cbind(data.frame(loan_status),data_pca$x)
+datatyp_pca
+```
+
+```{r}
+# Means of scores for all the PC's classified by Survival status
+tabmeansPC <- aggregate(datatyp_pca[,2:7],by=list(loan_status=dataset$loan_status),mean)
+tabmeansPC
+```
+
+Mean scores of each principal component for default vs non-default groups.
+
+```{r}
+tabfmeans <- t(tabmeansPC[,-1])
+tabfmeans
+```
+
+```{r}
+colnames(tabfmeans) <- t(as.vector(tabmeansPC[1]$loan_status))
+tabfmeans
+```
+
+```{r}
+# Standard deviations of scores for all the PC's classified by Survival status
+tabsdsPC <- aggregate(datatyp_pca[,2:7],by=list(loan_status=dataset$loan_status),sd)
+tabfsds <- t(tabsdsPC[,-1])
+colnames(tabfsds) <- t(as.vector(tabsdsPC[1]$loan_status))
+tabfsds
+```
+
+```{r}
+t.test(PC1~dataset$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC2~dataset$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC3~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+t.test(PC4~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+t.test(PC5~dataset$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC6~dataset$loan_status,data=datatyp_pca)
+```
+
+Insights: 
+Based on the p-values: PC1, PC5 and PC6 has significant difference in mean scores between the default and non-default groups. 
+For PC1  non-default group (mean = 1.0913824)  default group (mean = -0.8811571)
+PC5      non-default group (mean = 0.1446998)  default group (mean = -0.1168273)
+
+while PC2, PC3 and PC4 has no significant differences. 
+
+```{r}
+## F ratio tests
+var.test(PC1~dataset$loan_status,data=datatyp_pca)
+```
+
+```{r}
+var.test(PC2~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC3~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC4~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC5~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC6~dataset$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+# Plotting the scores for the first and second components
+plot(datatyp_pca$PC1, datatyp_pca$PC2,pch=ifelse(datatyp_pca$loan_status == 0,1,16),xlab="PC1", ylab="PC2", main="Status of loan against values for PC1 & PC2")
+abline(h=0)
+abline(v=0)
+legend("topright", legend=c("No-default","Default"), pch=c(1,16))
+```
+
+```{r}
+plot(eigen_data, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+```
+
+```{r}
+plot(log(eigen_data), xlab = "Component number",ylab = "log(Component variance)", type="l",main = "Log(eigenvalue) diagram")
+```
+
+```{r}
+plot(dataset[,-1])
+```
+
+```{r}
+plot(data_pca)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(data_pca, addlabels = TRUE)
+```
+
+
+```{r}
+library(FactoMineR)
+library(ggfortify)
+library(psych)
+library(corrplot)
+library(devtools)
+pairs.panels(dataset[,-1],
+             gap = 0,
+             bg = c("red", "blue")[dataset$loan_status],
+             pch=21)
+```
+
+
+```{r}
+fviz_pca_var(data_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+
