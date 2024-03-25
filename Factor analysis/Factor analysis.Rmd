@@ -1,0 +1,83 @@
+---
+title: "Factor analysis"
+output: html_document
+date: "2024-03-24"
+---
+
+```{r}
+
+# Factor Analysis
+
+library(psych)
+data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit data .csv", header=TRUE, fill = TRUE)
+data <- na.omit(data[,2:6])
+str(data)
+```
+
+
+```{r}
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$person_income <- as.numeric(data$person_income)
+data$loan_amnt <- as.numeric(data$loan_amnt)
+data$cb_person_cred_hist_length <- as.numeric(data$cb_person_cred_hist_length)
+str(data)
+```
+
+
+```{r}
+sampled_data <- data[sample(nrow(data), 70), ]
+matstd.data <- scale(sampled_data[,-1])
+```
+
+Q. Decide how many Factors are ideal for your dataset?
+
+```{r}
+fa.parallel(sampled_data[-1])
+```
+
+Parallel analysis suggests that the number of factors =  3  and the number of components =  2
+
+```{r}
+fit.pc <- principal(sampled_data[-1], nfactors=3, rotate="varimax")
+fit.pc
+```
+
+```{r}
+round(fit.pc$values, 3)
+fit.pc$loadings
+```
+
+Insights: 1.385 1.210 0.947 0.458 are the rounded eigenvalues. 
+Larger eigenvalues suggest that the corresponding principal component explains more variance in the data.
+
+Under each principal component, you have loadings for each original variable.
+Higher absolute values of loadings indicate a stronger correlation between the variable and the principal component.
+
+In short, this output provides information on the variance explained by each principal component(eigenvalues) and the relationship between original variables and these components in the PCA(loadings).
+
+
+```{r}
+fa.plot(fit.pc) # See Correlations within Factors
+
+```
+
+Q. Show the columns that go into each factor 
+
+```{r}
+fa.diagram(fit.pc)
+```
+
+Q. Perform some visualizations using the factors 
+
+```{r}
+vss(sampled_data[-1])
+```
+
+```{r}
+biplot(fit.pc)
+
+```
+
+
+
+
