@@ -1,0 +1,204 @@
+---
+title: "social media"
+output: html_document
+date: "2024-03-25"
+---
+
+```{r}
+library(readr)
+library(FactoMineR)
+library(ggfortify)
+library(psych)
+library(corrplot)
+library(devtools)
+data <- read.csv("C:/Users/rusha/Downloads/Multivariate/mva class social media.csv")
+str(data)
+```
+
+```{r}
+#data$OTT <- data$OTT..Netflix..Hulu..Prime.video..
+summary(data)
+```
+
+
+```{r}
+stddata <- scale(data)
+stddata
+```
+
+
+```{r}
+datacov <- cov(data)
+datacov
+
+# Formatting 
+datacov_rounded <- round(datacov, digits = 2)
+datacov_df <- as.data.frame(datacov_rounded)
+datacov_df
+```
+
+```{r}
+datamean <-  colMeans(data)
+datamean
+```
+
+```{r}
+data_MD <- mahalanobis(data, datamean, datacov)
+data_MD
+
+#My usage vs class
+data_MD[4]
+
+```
+
+```{r}
+# Lets plot correlation between columns
+cor.plot(data)
+```
+
+Insights: 
+1) Instagram is highly correlated with Snapchat, Whatsapp/Wechat.
+2) Tired waking up is correlated with Trouble falling asleep.
+3) Trouble falling asleep is correlated with Instagram, Snapchat.
+4) Tired waking up is correlated with Linkedin, Youtube but in opposite direction. 
+
+
+```{r}
+#Lets identify outliers in our data
+boxplot(data)
+```
+
+## Principal Component Analysis
+
+```{r}
+cor(data)
+```
+
+```{r}
+data_pca <- prcomp(data,scale. =TRUE)
+data_pca
+```
+
+```{r}
+summary(data_pca)
+```
+
+Insights : Keeping PC1, PC2, PC3 and PC4, as it captures ~75% of variance. 
+
+## Checking if our insight is correct 
+
+```{r}
+(eigen_data <- data_pca$sdev^2)
+```
+
+```{r}
+plot(eigen_data, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+
+```
+```{r}
+plot(eigen_data, type = "b", main="Scree Plot")
+abline(h=1,col="blue",lty=2)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(data_pca, addlabels = TRUE)
+```
+
+```{r}
+
+fviz_pca_var(data_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+Plot shows which variables are correlated. Here, Linkedin, Snapchat, Instagram, Youtube, Whatsapp/Wechat, Mood Productivity.
+
+## Clustering 
+#1) Hierarchical
+
+```{r}
+library(cluster)
+library(readr)
+library(factoextra)
+library(magrittr)
+library(NbClust)
+
+dist.data <- dist(stddata, method="euclidean")
+colnames(dist.data) <- rownames(dist.data)
+
+clusdata.nn <- hclust(dist.data, method = "single")
+
+options(repr.plot.width=10, repr.plot.height=6)  # Adjust the plot size as needed
+plot(as.dendrogram(clusdata.nn), ylab="Distance",
+     main="Dendrogram of all Users")
+```
+Insight: I think the optimal number of clusters are 5 
+
+## Non-hierarchical clustering/ K-means clustering
+
+```{r}
+(kmeans2.data <- kmeans(stddata,4,nstart = 10))
+
+```
+
+```{r}
+gap_stat <- clusGap(stddata, FUN = kmeans, nstart = 10, K.max = 10, B = 50)
+
+fviz_gap_stat(gap_stat)
+```
+
+Optimal number of cluster verified with the above plot. 
+
+```{r}
+set.seed(123)
+## Perform K-means clustering
+km.res3 <- kmeans(stddata, 3, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res3, data = stddata,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+From the plot we cannot directly infer anything. We see a lot of overlapping clusters. That is because we have a lot users that are using the same social media platforms. 
+
+```{r}
+set.seed(123)
+## Perform K-means clustering
+km.res5 <- kmeans(stddata, 5, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res5, data = stddata,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+
+```{r}
+res.hc <- stddata %>% scale() %>% dist(method = "euclidean") %>%
+  hclust(method = "ward.D2")  # Change matstd.data to your dataset
+
+# Visualize the Dendrogram
+fviz_dend(res.hc, k = 5,  # Cut in four groups
+          cex = 0.5,  # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07", "pink"),
+          color_labels_by_k = TRUE,  # color labels by groups
+          rect = TRUE)
+```
+## Factor Analysis
+```{r}
+fa.parallel(data[-1])
+```
+
+```{r}
+fit.pc <- principal(data[-1], nfactors=3, rotate="varimax")
+fit.pc
+```
+
+```{r}
+fa.diagram(fit.pc)
+```
+
+```{r}
+vss(data[-1])
+```
+
