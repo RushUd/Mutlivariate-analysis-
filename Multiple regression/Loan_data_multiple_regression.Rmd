@@ -1,0 +1,133 @@
+---
+title: "Loan data- Multiple regression"
+output: html_document
+date: "2024-04-15"
+---
+1. Model Development
+```{r}
+loan_data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+str(loan_data)
+
+#loan_data_numeric <- as.data.frame(sapply(loan_data, as.numeric))
+model_fit <- lm(loan_status ~ person_income + loan_amnt + loan_int_rate + cb_person_cred_hist_length + cb_person_default_on_file, data = loan_data)
+summary(model_fit)
+coefficients(model_fit)
+
+```
+
+Intercept: indicates the estimated value of the dependent variable (loan_status) when all predictor variables are zero. 0.6091.
+
+For a one-unit increase in person_income, the expected change in loan_status is a decrease of approximately 0.00000457.
+Very low p-value (< 0.001), i.e has a significant effect. 
+
+For a one-unit increase in loan_amnt, the expected change in loan_status is an increase of approximately 0.00001073. 
+very low p-value (< 0.001), i.e significant effect. 
+
+For a one-unit increase in loan_int_rate, the expected change in loan_status is an increase of approximately 0.02467. 
+very low p-value (< 0.001), i.e significant effect. 
+
+For a one-unit increase in cb_person_cred_hist_length, the expected change in loan_status is a decrease of approximately 0.03373. 
+p-value for this coefficient is 0.107, i.e not statistically significant. 
+
+For cb_person_default_on_file set to 'Y' (yes) results in an increase of approximately 0.00972 in the expected value of loan_status. 
+p-value for this coefficient is 0.828, i.e not statistically significant. 
+
+The Adjusted R-squared value is approximately 0.4764, indicating that the model explains about 47.64% of the variability in loan_status.
+The F-statistic is 81.99 with a p-value < 0.001, indicating that the overall model is statistically significant.
+
+loan_status has statistically significant predictors (person_income, loan_amnt, and loan_int_rate). However, some predictors (cb_person_cred_hist_length and cb_person_default_on_fileY) are not statistically significant. 
+
+
+2. Model Acceptance
+```{r}
+# Assess the acceptance of the model
+# Check R-squared and adjusted R-squared
+r_squared <- summary(model_fit)$r.squared
+adj_r_squared <- summary(model_fit)$adj.r.squared
+cat("R-squared:", r_squared, "\n")
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+
+# Check the F-statistic and its p-value
+f_statistic <- summary(model_fit)$fstatistic
+f_statistic_value <- f_statistic[1]
+f_statistic_p_value <- pf(f_statistic_value, f_statistic[2], f_statistic[3], lower.tail = FALSE)
+cat("F-statistic:", f_statistic_value, "\n")
+cat("p-value:", f_statistic_p_value, "\n")
+```
+R-squared (0.4823) indicates that approximately 48.23% of the variability in the dependent variable (loan_status) is explained by the model.
+Adjusted R-squared (0.4764) adjusts the R-squared value for the number of predictors in the model. It is slightly lower than R-squared, suggesting that adding more predictors may not significantly improve the model's explanatory power.
+
+The F-statistic (81.98651) tests the overall significance of the model. It compares the fit of the model with no predictors (null model) against the fit of the current model.
+The associated p-value (1.039549e-60) is extremely low, indicating strong evidence against the null hypothesis (that the model has no predictive power).
+
+However,  the model appears to have some predictive power and explanatory value, there may be opportunities to refine the model by considering additional predictors or exploring alternative modeling techniques.
+
+
+3. Residual Analysis 
+```{r}
+# Select only numeric variables from fish_data
+numeric_loan_data <- loan_data[, sapply(loan_data, is.numeric)]
+# Plot pairs
+pairs(numeric_loan_data, main = "Loan Data")
+confint(model_fit,level=0.95)
+fitted(model_fit)
+residuals(model_fit)
+
+# Plot residuals vs. fitted values
+plot(model_fit, which = 1)
+
+# Plot normal Q-Q plot of residuals
+plot(model_fit, which = 2)
+```
+
+We see the points are not always normally distributed. 
+
+4. Prediction
+```{r}
+# Make predictions
+predictions <- predict(model_fit, newdata = loan_data)
+
+# Print predictions
+print(predictions)
+```
+
+Each predicted weight represents the estimated weight of loan i.e if a person gets it or not, based on its corresponding values of the predictor variables (person_income + loan_amnt + loan_int_rate + cb_person_cred_hist_length + cb_person_default_on_file) as per the fitted regression model.
+
+5. Model Accuracy
+```{r}
+# Calculate Mean Squared Error (MSE)
+mse <- mean(model_fit$residuals^2)
+
+# Calculate Root Mean Squared Error (RMSE)
+rmse <- sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE)
+mae <- mean(abs(model_fit$residuals))
+
+# Print the accuracy metrics
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+The MSE is 0.127923, on average, the squared difference between the observed and predicted values. 
+
+The RMSE is 0.3576632, suggesting that, on average, the difference between the actual and predicted values.
+
+The MAE is 0.2890811, indicating that, on average, the absolute difference between the actual and predicted values. 
+
+Lower values of MSE, RMSE, and MAE indicate better model performance, with smaller differences between actual and predicted values.
+
+
+```{r}
+#Anova Table
+anova(model_fit)
+vcov(model_fit)
+cov2cor(vcov(model_fit))
+temp <- influence.measures(model_fit)
+temp
+plot(model_fit)
+
+anova_result <- anova(model_fit)
+print(anova_result)
+```
+
