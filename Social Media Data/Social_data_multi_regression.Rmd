@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r}
+social_data <- read.csv("C:/Users/rusha/Downloads/Multivariate/mva class social media.csv")
+str(data)
+```
+
+```{r}
+model_fit <- lm(Mood.Productivity ~ Instagram + Whatsapp..Wechat + Youtube + Linkedin, data = social_data)
+summary(model_fit)
+coefficients(model_fit)
+```
+Intercept: 
+FOr one unit increase in (Instagram/Whatsapp..Wechat/Linkedin), the Mood/productivity of a person increases by (0.012/0.013/0.032) respectively. And for one unit increase in YouTube, the Mood decreases by 0.04.
+
+From the Adjusted R-squared value, the model only explains an 8.9% of variance in data. 
+This is not the best model. 
+
+2. Model Acceptance
+```{r}
+# Assess the acceptance of the model
+# Check R-squared and adjusted R-squared
+r_squared <- summary(model_fit)$r.squared
+adj_r_squared <- summary(model_fit)$adj.r.squared
+cat("R-squared:", r_squared, "\n")
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+
+# Check the F-statistic and its p-value
+f_statistic <- summary(model_fit)$fstatistic
+f_statistic_value <- f_statistic[1]
+f_statistic_p_value <- pf(f_statistic_value, f_statistic[2], f_statistic[3], lower.tail = FALSE)
+cat("F-statistic:", f_statistic_value, "\n")
+cat("p-value:", f_statistic_p_value, "\n")
+```
+
+Although, R-squared: 0.271 suggests the model explains moderate amount of variance, the F-statistic is 1.49 and p-value is 0.2511, indicating that the model is not significant.
+
+3. Residual Analysis 
+```{r}
+# Select only numeric variables from fish_data
+numeric_social_data <- social_data[, sapply(social_data, is.numeric)]
+# Plot pairs
+pairs(numeric_social_data, main = "Loan Data")
+confint(model_fit,level=0.95)
+fitted(model_fit)
+residuals(model_fit)
+
+# Plot residuals vs. fitted values
+plot(model_fit, which = 1)
+
+# Plot normal Q-Q plot of residuals
+plot(model_fit, which = 2)
+```
+
+Most of the points lies on the straight line, thus the points are normally distributed.
+
+4. Prediction
+```{r}
+# Make predictions
+predictions <- predict(model_fit, newdata = social_data)
+
+# Print predictions
+print(predictions)
+```
+
+5. Model Accuracy
+```{r}
+# Calculate Mean Squared Error (MSE)
+mse <- mean(model_fit$residuals^2)
+
+# Calculate Root Mean Squared Error (RMSE)
+rmse <- sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE)
+mae <- mean(abs(model_fit$residuals))
+
+# Print the accuracy metrics
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+
+Lower values of MSE, RMSE, and MAE indicate better model performance, with smaller differences between actual and predicted values.
+
+
+```{r}
+#Anova Table
+anova(model_fit)
+vcov(model_fit)
+cov2cor(vcov(model_fit))
+temp <- influence.measures(model_fit)
+temp
+plot(model_fit)
+
+anova_result <- anova(model_fit)
+print(anova_result)
+```
+
