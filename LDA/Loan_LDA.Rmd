@@ -1,0 +1,114 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+1) Model development
+```{r}
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+library(dplyr)
+library(klaR)
+
+data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+str(data)
+data$person_income <- as.numeric(data$person_income)
+data$loan_amnt <- as.numeric(data$loan_amnt)
+
+
+# Define the breaks for the income ranges
+breaks <- c(0, 25000, 50000, 80000, 120000, 160000, Inf)
+
+# Define labels for the income ranges
+labels <- c("0-25000", "25001-50000", "50001-80000", "80001-120000", "120001-160000", "160001+")
+
+# Discretize the income values into bins
+data$person_income <- cut(data$person_income, breaks = breaks, labels = labels)
+
+# Check the result
+head(data$person_income)
+
+str(data)
+```
+
+```{r}
+#wdbc.data <- as.matrix(wdbc[,c(3:32)])
+#row.names(wdbc.data) <- wdbc$id
+#wdbc_raw <- cbind(wdbc.data, as.numeric(as.factor(wdbc$diagnosis))-1)
+#smp_size_raw <- floor(0.75 * nrow(wdbc_raw))
+#train_ind_raw <- sample(nrow(wdbc_raw), size = smp_size_raw)
+#train_raw.df <- as.data.frame(wdbc_raw[train_ind_raw, ])
+#test_raw.df <- as.data.frame(wdbc_raw[-train_ind_raw, ])
+#wdbc_raw.lda <- lda(formula = train_raw.df$diagnosis ~ ., data = train_raw.df)
+#wdbc_raw.lda
+
+# Combine loan data with loan status and income group
+loan.data <- as.matrix(data[,c(6:7)])
+loan.data <- cbind(loan.data, loan_status = data$loan_status)
+row.names(loan.data) <- data$loan_status
+loan_raw <- cbind(loan.data, as.numeric(as.factor(data$person_income))-1)
+colnames(loan_raw)[3] <- "income_group"
+# Remove rows with NA values
+loan_raw <- loan_raw[complete.cases(loan_raw), ]
+# Split data into train and test sets
+samp_size_raw <- floor(0.75 * nrow(loan_raw))
+train_loan_raw <- sample(nrow(loan_raw), size = samp_size_raw)
+train_raw.df <- as.data.frame(loan_raw[train_loan_raw, ])
+test_raw.df <- as.data.frame(loan_raw[-train_loan_raw, ])
+# Fit LDA model
+loan_raw.lda <- lda(formula = train_raw.df$income_group ~., data = train_raw.df)
+loan_raw.lda
+```
+
+Insights
+The prior probability of group 0 is approximately 0.43, and the prior probability of group 1 is approximately 0.57, indicating that the training dataset is slightly imbalanced, with more observations belonging to group 1.(i.e loan accepted)
+
+loan_int_rate and loan_percent_income have positive coefficients, suggesting that higher values of these variables are associated with group 1.
+'V4' or 'income_group' has a negative coefficient, indicating that higher values of V4 are associated with group 0.
+
+```{r}
+plot(loan_raw.lda, xlab = "Predicted Group")
+```
+
+
+```{r}
+#wdbc_raw.lda.predict <- predict(wdbc_raw.lda, newdata = test_raw.df)
+#wdbc_raw.lda.predict$class
+#wdbc_raw.lda.predict$x
+
+#loan_raw.lda.predict <- predict(loan_raw.lda, newdata = test_raw.df)
+#loan_raw.lda.predict$class
+#loan_raw.lda.predict$x
+
+# Remove NA values from the data frame
+clean_test_raw.df <- na.omit(test_raw.df)
+
+# Perform prediction with LDA
+loan_raw.lda.predict <- predict(loan_raw.lda, newdata = clean_test_raw.df)
+
+# Access predicted class
+loan_raw.lda.predict$class
+
+# Access LD scores
+loan_raw.lda.predict$x
+```
+
+```{r}
+# Get the posteriors as a dataframe.
+loan_raw.lda.predict.posteriors <- as.data.frame(loan_raw.lda.predict$posterior)
+
+pred <- prediction(loan_raw.lda.predict.posteriors[,2], test_raw.df$income_group)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+plot(roc.perf)
+abline(a=0, b= 1)
+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+# The AUC value will be different everytime we compute the code as we are taking random sample for test and train model.
+```
+
