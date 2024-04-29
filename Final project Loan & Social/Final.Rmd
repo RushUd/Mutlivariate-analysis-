@@ -1,0 +1,1519 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+---
+title: "MVA-Exploratory Data Analysis (EDA): Visualization"
+output: html_document
+date: "2024-02-16"
+---
+
+1. Explain the data collection process (10 points)
+
+Data collection: https://www.kaggle.com/datasets/laotse/credit-risk-dataset?resource=download
+
+Dependent variable: loan_status 
+Independent variables: 
+1)	person_age	
+2)	person_income	
+3)	person_emp_length	
+4)	loan_grade	
+5)	loan_amnt	
+6)	loan_int_rate 
+7)	loan_percent_income	
+8)	cb_person_default_on_file	
+
+Independent variables:
+1)	person_age:(INTEGER) Age of the individual applying for the loan.
+2)	person_income:(INTEGER) Annual income of the individual.
+3)	person_emp_length:(FLOAT) Employment length of the individual in years.
+4)	loan_grade:(CHARACTER) The grade assigned to the loan based on the creditworthiness of the borrower.
+A: The borrower has a high creditworthiness, indicating low risk.
+B: The borrower is relatively low-risk, but not as creditworthy as Grade A.
+C: The borrower's creditworthiness is moderate.
+D: The borrower is considered to have higher risk compared to previous grades.
+E: The borrower's creditworthiness is lower, indicating a higher risk.
+F: The borrower poses a significant credit risk.
+G: The borrower's creditworthiness is the lowest, signifying the highest risk.
+5)	loan_amnt:(INTEGER)The loan amount requested by the individual.
+6)	loan_int_rate:(FLOAT) The interest rate associated with the loan.
+7)	loan_percent_income:(FLOAT) The percentage of income represented by the loan amount.
+8)	cb_person_default_on_file:(INTEGER)Historical default of the individual as per credit bureau records.
+a.	Y: The individual has a history of defaults on their credit file.
+b.	N: The individual does not have any history of defaults.
+Dependent variable:
+1)	loan_status:(INTEGER) Loan status, where 1 indicates did not recieve loan and 0 indicates loan recieved.
+
+
+Various factors influence loan status among borrowers, including personal financial stability, employment status, credit history, and loan terms. 
+By analysing such factors I can provide valuable insights to the lenders to assess the creditworthiness of applicants and tailor loan terms accordingly.
+
+Understanding the factors that contribute to loan status enables individuals to understand and take proactive measures to mitigate risks that affects if they will get a loan or not.
+
+#Question: Does the loan grade define if a person will recieve loan or not?
+
+```{r}
+library(readr)
+library(cluster)
+library(readr)
+library(factoextra)
+library(magrittr)
+library(NbClust)
+dataset<- read_csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+
+```
+
+```{r}
+str(dataset)
+```
+
+```{r}
+boxplot(dataset$person_income)
+boxplot(dataset[,4:8])
+boxplot(dataset$loan_percent_income)
+```
+
+#Insights:
+
+Boxplot of person income and loan percent income shows an outlier.
+The median for loan amount is close to 24000, with bottom edge of 10000 and top edge of 25000.
+The median for loan percent income is close to 0.25, with bottom edge of 0.1 and top edge of 0.35.
+
+```{r}
+stars(dataset,labels = dataset$loan_status)
+```
+
+#Correlation matrix
+
+```{r}
+library(ggcorrplot)
+correlation_matrix<- cor(dataset[,0:8])
+ggcorrplot(correlation_matrix,type = "lower", lab = TRUE)
+
+```
+
+#Insights:
+
+By looking at the correlation matrix we can understand the magnitude and direction of relationship between two variables.Closer the value to 1 the stronger the relationship. Negative value indicates that the direction is opposite. 
+
+## As the income increases the percentage of income represented by loan amount decreases.
+1) Here, value -0.65 for person_income vs loan_percent_income indicates a moderate-strong relationship and an inverse relationship.One variable increases, the other variable decreases, and vice versa.
+ 
+## High loan_status i.e a person did not recieve loan, the loan percent of income also increases. 
+2) Value 0.71 for loan_status vs loan_percent_income indicates a strong relationship and a positive correlation.
+
+## People borrow a big loan and then the loan takes off a higher percentage of their income.-- Not good. 
+3) Value 0.38 for loan_amnt vs loan_percent_income indicates a moderate-strong relationship and a positive correlation. 
+
+
+# Popular age group between loan borrowers 
+```{r}
+# MAX AND MIN AGE
+max_age <- max(dataset$person_age, na.rm = TRUE)
+min_age <- min(dataset$person_age, na.rm = TRUE)
+cat("Maximum Age:", max_age, "\n")
+cat("Minimum Age:", min_age, "\n")
+
+# People with an age between x and y
+age_group <- function(arr, dataset) {
+  for (i in seq_along(arr[-1])) {
+    age_min <- arr[i] + 1
+    age_max <- arr[i + 1]
+    num_people <- sum(dataset$person_age >= age_min & dataset$person_age < age_max, na.rm = TRUE)
+    cat("Age between", age_min, "and", age_max, ": Number of people", num_people, "\n")
+  }
+}
+
+age_group(c(0, 21, 23, 25, 27), dataset)
+
+
+```
+
+#Most of the people are 24 to 25 years old. 
+
+2. Exploratory Data Analysis and Visualizations (50 points)
+# Univariate visualizations
+
+## What is the typical loan amount that most people borrow? 
+1) Density plot of Loan Amount
+
+```{r}
+library(scales)
+density_loan_amount <- ggplot(dataset, aes(x = loan_amnt)) +
+  geom_density(fill = "grey") + labs(title = "Density Plot of Loan Amount") +
+  scale_y_continuous(labels = comma)+
+  xlab("Loan Amount") + ylab("Density")+theme_classic()
+
+print(density_loan_amount)
+```
+
+#Insights:
+The plot is skewed to the right. 
+The peak of the density plot is somewhere around 25000.---Typical loan amount 
+
+The plot is continuous and widely spread. A wider spread suggests a greater range of loan amounts. 
+
+## Does grade define the loan status? 
+2) Bar plot of Loan Grade
+
+```{r}
+bar_loan_grade <- ggplot(dataset, aes(x = loan_grade)) +
+  geom_bar(fill = "lightgreen") +
+  labs(title = "Bar Plot of Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Frequency")+theme_bw()
+
+print(bar_loan_grade)
+```
+
+#Insights:
+
+Looking at the bar plot, we can understand Grade B is the highest in frequency while grade G is the least. 
+Further, this means that the number of borrowers who are relatively low-risk, but not as creditworthy as Grade A are the most in count. 
+
+The borrower's creditworthiness is moderate, that is grade C is more than the borrowers, grade A, who has the highest creditworthiness.
+
+#People with Grade A,B,C,D are higher than E,F,G 
+
+
+#Bivariate Visuals
+
+1)Scatter Plot- Matrix
+
+```{r}
+library(GGally)
+ggscatmat(dataset, columns=3:6, color="loan_status")
+```
+
+The length of employement has a positive correlation with income of a person. 
+
+
+2) Boxplot of Loan grade vs Loan amount
+
+```{r}
+boxplot_loan_grade_amount <- ggplot(dataset, aes(x = loan_grade, y = loan_amnt)) +
+  geom_boxplot(fill = "lightgreen") + 
+  labs(title = "Box Plot of Loan Amount by Loan Grade") +
+  xlab("Loan Grade") +
+  ylab("Loan Amount") + theme_bw()
+
+print(boxplot_loan_grade_amount)
+```
+
+#Insights:
+The plot shows, that the borrowers with loan grade D has most number of outliers when compared with the loan amount requested by them. 
+or 
+We can say that the a person with loan grade D asks for random amount of loans. This might also define why the borrower's is considered to have higher risk of creditworthiness. 
+
+
+
+3) Scatter plot of Loan amount vs loan percent income
+
+```{r}
+scatter_plot <- ggplot(dataset, aes(x = loan_amnt, y = loan_percent_income, color=loan_status )) +
+  geom_point() +  # Add points
+  labs(x = "Loan Amount", y = "Loan Percent Income", title = "Scatter Plot of Loan Amount vs Loan Percent Income", color = "Loan Status")
+plot(scatter_plot)
+```
+
+By looking at the plot we can say, the status of loan getting accepted does not depend upon the loan amount asked. 
+People who got a loan have a loan which is of less percentage of their income. 
+
+
+#Scatter Plot of Loan amount vs loan percent income with loan grades colored 
+
+```{r}
+ggplot(dataset, aes(x = loan_amnt, y = loan_percent_income, color = loan_grade)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Scatter plot of Loan Amount vs. Loan Percent Income by Loan Grade",
+       x = "Loan Amount", y = "Loan Percent Income", color = "Loan Grade") +
+  theme_minimal()
+```
+
+#Insights:
+
+These is no linear relationship between loan amount and loan percent income.
+
+Points are more densely populated between loan amount 0-10000 and 22000-30000.
+
+Having a high loan percent income does not always corresponds to having a high loan amount. Borrowers who have requested Loan amounts of 5000-7000 also corresponds to high percentage of borrowers income. The same for borrowers requesting loan about of 25000 or greater. 
+
+
+
+```{r}
+library(lattice)
+xyplot(person_income ~ person_age | loan_grade, data = dataset)
+```
+
+
+
+---
+title: "Mean and variance analysis"
+output: html_document
+date: "2024-02-23"
+---
+
+Statistics test
+```{r}
+options(scipen = 999) # To suppress scientific notation 
+
+dataset_clean <- na.omit(dataset)
+datascale <- dist(scale(dataset_clean[,c("loan_status","person_income","loan_amnt","loan_percent_income")],center = FALSE))
+as.dist(round(as.matrix(datascale), 2)[1:20, 1:20])
+```
+
+Testing Statistics 
+
+Univariate analysis 
+1) Finding means of each column
+2) Covariance matrix for all columns in the data
+3) Mahalanobis distances for each observation: To identify outlier or observations that are unusual relative to the overall distribution of the data. The distance is also used in clustering algorithms, like k-means clustering. 
+
+
+```{r}
+x<- dataset_clean[,c("loan_status","person_income","loan_amnt","loan_percent_income")]
+x
+
+```
+
+
+```{r}
+dataset_cm <- colMeans(x)
+dataset_cm
+```
+
+Insights: 
+Correlation
+Average Income: The average person's income is approximately $104,516.41.
+Average Loan Amount: The average loan amount is approximately $19,726.53.
+Loan-to-Income Ratio: On average, loans represent about 25.63% of a person's income.
+```{r}
+standardized_data <- scale(x)
+dataset_S <- cov(standardized_data)
+dataset_S
+```
+Covariance between loan_percent_income and loan_status, direct relationship. 
+A lot of negative covariance between variables. 
+
+
+without standardizing 
+```{r}
+dataset_d <- apply(x, MARGIN = 1, function(x)t(x - dataset_cm) %*% solve(dataset_S) %*% (x - dataset_cm))
+dataset_d
+```
+
+
+Distance 
+Large distance = outlier / anomaly
+
+
+Lets find out if the dataset follows a particular distribution/ is normally distributed?
+--Applying qqnorm to three variables: person_income, loan_amnt, and loan_percent_income
+```{r}
+qqnorm(dataset_clean$person_income, main = "Person income")
+qqline(dataset_clean$person_income)
+
+qqnorm(dataset_clean$loan_amnt, main = "Loan amount")
+qqline(dataset_clean$loan_amnt)
+
+qqnorm(dataset_clean$loan_percent_income, main = "Loan to income ratio")
+qqline(dataset_clean$loan_percent_income)
+```
+
+Insight: 
+#Person income is following the reference line at some points, while misses at some. 
+
+#Loan amount is not normally distributed for most points. 
+
+#Loan to income ratio is normally distributed for most points at the centre, while misses some points at the start and end. 
+
+
+Test to find equality of variances between 2 groups of loan status. 
+```{r}
+var.test(dataset$loan_status==0, dataset$loan_status==1)
+```
+Insight: 
+p-value = 1, suggests that there is no significant difference in the variances between the two groups of loan status. 
+
+
+
+Performing t-test for each independent variable in the dataset, by comparing its means between two groups of loan status. 
+
+```{r}
+with(data=dataset_clean,t.test(person_income[loan_status==0],person_income[loan_status==1],var.equal=TRUE))
+```
+
+t-value is 17.3, a big difference between the means of two groups. 
+p-value < 0.00000000000000022, extremely low-- strong evidence against null hypothesis. 
+95 percent confidence interval is 83919.85, 105402.06. Mean of person income should be moved to this interval for getting loans. 
+
+
+```{r}
+with(data=dataset_clean,t.test(person_emp_length[loan_status==0],person_emp_length[loan_status==1],var.equal=TRUE))
+```
+t-value is 2.7, not a signficant difference between the means of two groups. 
+p-value = 0.006561, evidence against null hypothesis. 
+95 percent confidence interval is 0.224430, 1.376094. Mean of person employement length should be moved to this interval before people borrow loans. 
+
+```{r}
+with(data=dataset_clean,t.test(loan_amnt[loan_status==0],loan_amnt[loan_status==1],var.equal=TRUE))
+```
+t-value is -1.63, not a signficant difference between the means of two groups. But in opposite direction. 
+p-value = 0.1021, evidence against null hypothesis. 
+
+```{r}
+with(data=dataset_clean,t.test(loan_int_rate[loan_status==0],loan_int_rate[loan_status==1],var.equal=TRUE))
+```
+t-value is -4.48, signficant difference between the means of two groups. In opposite direction. 
+p-value = 0.000009249, extremely low, strong evidence against null hypothesis.
+
+```{r}
+with(data=dataset_clean,t.test(loan_percent_income[loan_status==0],loan_percent_income[loan_status==1],var.equal=TRUE))
+```
+t-value is -21.43, strong signficant difference between the means of two groups. In opposite direction. 
+p-value < 0.00000000000000022, extremely low, strong evidence against null hypothesis.
+
+```{r}
+with(data=dataset_clean,t.test(cb_person_cred_hist_length[loan_status==0],cb_person_cred_hist_length[loan_status==1],var.equal=TRUE))
+```
+
+
+
+Multivariate analysis: 
+Hotelling's T-squared test/ extension of the univariate t-test to multidimensional data.
+
+
+```{r}
+library(Hotelling)
+
+ 
+
+t2test <- hotelling.test(person_income + person_emp_length + loan_amnt + loan_int_rate + loan_percent_income + cb_person_cred_hist_length ~ loan_status, data = dataset_clean )
+cat("T2 statistic =", t2test$stat[[1]],"\n")
+print(t2test)
+```
+Insight: 
+T2 statistic of 645, measures how much the average values of multiple variables differ between the two groups in loan status. Larger T2 value indicates a greater difference. There is strong distinction between the groups based on the combination of variables being analyzed. 
+
+p-value = 0 suggests strong evidence against the null hypothesis. 
+Thus indicating significant differences between the group means in the multivariate space. That is there is something affecting and we cannot accept the null hypothesis.
+
+
+
+Levene's test--to find if the variance of independent variables differ significantly between different groups of loan status. 
+```{r}
+datastand <- round(scale(dataset_clean[,3:8]),2)
+datastand
+```
+
+```{r}
+attach(dataset_clean)
+dataL <- datastand[loan_status==0,]
+dataL
+```
+
+
+Vector containing the median values of each column in the subset of data 
+
+```{r}
+dataNL <- datastand[dataset_clean$loan_status==1,]
+vecmedianL <- apply(dataL, 2, median)
+vecmedianL
+
+```
+
+The absolute deviations of each element in the data 
+Subtracting the median values from the elements of datadef and then taking the absolute value of the differences.
+
+```{r}
+
+vecmedianNL <- apply(dataNL,2,median)
+matabsdevL <- abs(dataL - matrix(rep(vecmedianL,nrow(dataL)),nrow=nrow(dataL),byrow=TRUE))
+matabsdevNL <- round(abs(dataNL - matrix(rep(vecmedianNL,nrow(dataNL)),nrow=nrow(dataNL), byrow=TRUE)),2)
+
+matabsdevNL
+
+```
+
+
+```{r}
+matabsdev.all <- rbind(matabsdevL, matabsdevNL)
+matabsdev.all <- data.frame(dataset_clean$loan_status, matabsdev.all)
+
+matabsdev.all
+```
+
+T-test for each independent variable 
+
+```{r}
+
+t.test(matabsdev.all$person_income[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$person_income[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+p-value = 0.00695, reject null hypothesis 
+
+```{r}
+t.test(matabsdev.all$person_emp_length[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$person_emp_length[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+p-value = 0.0863, very little greater than 0.05. We do not reject the null hypothesis. The person employment length does not have a significant evidence against null hypothesis. 
+
+```{r}
+t.test(matabsdev.all$loan_amnt[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$loan_amnt[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+p-value = 0.5346, reject null hypothesis. 
+
+```{r}
+t.test(matabsdev.all$loan_percent_income[matabsdev.all$dataset_clean.loan_status == 0], matabsdev.all$loan_percent_income[matabsdev.all$dataset_clean.loan_status == 1], alternative="less",var.equal=TRUE)
+```
+
+Insight: 
+p-value for personal_income is < 0.05. Thus, rejecting the null hypothesis. 
+
+
+Statistical tests to compare the mean absolute deviations of certain variables between loan not recieved and loan recieved, helping to understand if there are significant differences between the groups.
+
+```{r}
+matstand.all <- data.frame(dataset_clean$loan_status, datastand)
+matstand.all
+colnames(matstand.all) <- colnames(dataset_clean[2:8])
+t2testsparr <- hotelling.test(person_income+person_emp_length+loan_amnt +loan_int_rate+loan_percent_income ~ loan_status,data=matstand.all)
+cat("T2 statistic =",t2testsparr$stat[[1]],"\n")
+```
+
+```{r}
+#library(car)
+#data_loan <- dataset_clean$loan_status
+#leveneTest(person_income ~ data_loan, data=dataset_clean)
+```
+```{r}
+#leveneTest(loan_amnt ~ data_loan, data=dataset_clean)
+```
+
+```{r}
+#leveneTest(loan_percent_income ~ data_loan, data=dataset_clean)
+
+```
+
+# 3) Application of different MVA models (10 points)
+
+# PCA
+---
+title: "PCA analysis"
+output: html_document
+date: "2024-03-01"
+---
+
+
+```{r}
+var_data <- dataset_clean[,2:8]
+#cor(var_data[-1])
+correlation_matrix <- cor(var_data[-1])
+rounded_correlation_matrix <- round(correlation_matrix, 2)
+rounded_correlation_matrix
+```
+
+```{r}
+data_pca <- prcomp(var_data[,-1],scale=TRUE)
+data_pca
+```
+
+```{r}
+summary(data_pca)
+```
+1. Decide how many Principal Components (PCs) you want to keep and why (2 points)
+Answer: I want to keep PC1 PC2 and PC3, here is why
+PC1: highest standard deviation: captures the most variability in data: 29.2% of the total variance is captured
+PC2: high standard deviation: captures the most variability in data: 23.06% of the total variance is captured
+PC3: high standard deviation: captures 16.85% of the total variance: cumulative of PC1, PC2 and PC3 is 69.1%.
+
+PC4 to PC6 captures significantly less proportions of total variance. 
+
+
+```{r}
+(eigen_data <- data_pca$sdev^2)
+```
+Insight: We consider retaining principal components with eigenvalues greater than 1.
+
+```{r}
+names(eigen_data) <- paste("PC",1:6,sep="")
+eigen_data
+```
+
+```{r}
+sumlambdas <- sum(eigen_data)
+sumlambdas
+```
+
+```{r}
+propvar <- eigen_data/sumlambdas
+propvar
+```
+
+```{r}
+cumvar_data <- cumsum(propvar)
+cumvar_data
+```
+
+```{r}
+matlambdas <- rbind(sqrt(eigen_data),propvar,cumvar_data)
+rownames(matlambdas) <- c("Eigenvalues","Prop. variance","Cum. prop. variance")
+round(matlambdas,4)
+```
+
+```{r}
+summary(data_pca)
+```
+2. Explain the variate representation each PCs
+
+```{r}
+data_pca$rotation
+```
+
+```{r}
+print(data_pca)
+```
+Insight: 
+PC1 positively correlated with person_income person_emp_length and cb_person_cred_hist_length, thus PC1 captures information about the overall financial status, employment length, and credit history.
+loan_percent_income has a strong negative correlation with PC1, thus higher loan amounts relative to income are associated with lower values of PC1.
+
+Similarily, PC2 is positively correlated with cb_person_cred_hist_length, strong negative correlation with loan_ammt and negatively correlated with all the other columns. 
+PC3 is positively correlated with person_emp_length, strong negative correlation with cb_person_cred_hist_length and negatively with all other columns. 
+
+```{r}
+data_pca$x
+```
+
+```{r}
+#Identify the score by the loan status
+datatyp_pca <- cbind(data.frame(loan_status),data_pca$x)
+datatyp_pca
+```
+
+```{r}
+# Means of scores for all the PC's classified by loan status
+tabmeansPC <- aggregate(datatyp_pca[,2:7],by=list(loan_status=dataset_clean$loan_status),mean)
+tabmeansPC
+```
+
+Mean scores of each principal component for default vs non-default groups.
+
+```{r}
+tabfmeans <- t(tabmeansPC[,-1])
+tabfmeans
+```
+
+```{r}
+colnames(tabfmeans) <- t(as.vector(tabmeansPC[1]$loan_status))
+tabfmeans
+```
+
+```{r}
+# Standard deviations of scores for all the PC's classified by Survival status
+tabsdsPC <- aggregate(datatyp_pca[,2:7],by=list(loan_status=dataset_clean$loan_status),sd)
+tabfsds <- t(tabsdsPC[,-1])
+colnames(tabfsds) <- t(as.vector(tabsdsPC[1]$loan_status))
+tabfsds
+```
+
+```{r}
+t.test(PC1~dataset_clean$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC2~dataset_clean$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC3~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+t.test(PC4~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+t.test(PC5~dataset_clean$loan_status,data=datatyp_pca)
+```
+
+```{r}
+t.test(PC6~dataset_clean$loan_status,data=datatyp_pca)
+```
+
+Insights: 
+Based on the p-values: PC1, PC5 and PC6 has significant difference in mean scores between the default and non-default groups. 
+For PC1  non-default group (mean = 1.0913824)  default group (mean = -0.8811571)
+PC5      non-default group (mean = 0.1446998)  default group (mean = -0.1168273)
+
+while PC2, PC3 and PC4 has no significant differences. 
+
+```{r}
+## F ratio tests
+var.test(PC1~dataset_clean$loan_status,data=datatyp_pca)
+```
+
+```{r}
+var.test(PC2~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC3~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC4~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC5~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+var.test(PC6~dataset_clean$loan_status,data=datatyp_pca)
+
+```
+
+```{r}
+# Plotting the scores for the first and second components
+plot(datatyp_pca$PC1, datatyp_pca$PC2,pch=ifelse(datatyp_pca$loan_status == 0,1,16),xlab="PC1", ylab="PC2", main="Status of loan against values for PC1 & PC2")
+abline(h=0)
+abline(v=0)
+legend("topright", legend=c("No-default","Default"), pch=c(1,16))
+```
+
+```{r}
+plot(eigen_data, xlab = "Component number", ylab = "Component variance", type = "l", main = "Scree diagram")
+```
+
+```{r}
+plot(log(eigen_data), xlab = "Component number",ylab = "log(Component variance)", type="l",main = "Log(eigenvalue) diagram")
+```
+
+```{r}
+plot(dataset[,-1])
+```
+
+```{r}
+plot(data_pca)
+```
+
+```{r}
+library(factoextra)
+fviz_eig(data_pca, addlabels = TRUE)
+```
+
+
+```{r}
+library(FactoMineR)
+library(ggfortify)
+library(psych)
+library(corrplot)
+library(devtools)
+pairs.panels(dataset[,-1],
+             gap = 0,
+             bg = c("red", "blue")[dataset$loan_status],
+             pch=21)
+```
+
+
+```{r}
+fviz_pca_var(data_pca,col.var = "cos2",
+             gradient.cols = c("#FFCC00", "#CC9933", "#660033", "#330033"),
+             repel = TRUE)
+```
+
+# Clustering 
+---
+title: "HW - Cluster Analysis"
+output: html_document
+date: "2024-03-08"
+---
+
+```{r}
+
+# Again loading dataset as we 
+data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit data .csv", header=TRUE, fill = TRUE)
+data <- na.omit(data[,2:6])
+
+```
+
+```{r}
+str(data)
+```
+```{r}
+# Remove duplicate row names
+data_grouped <- data
+data_grouped$person_home_ownership <-as.character(data_grouped$person_home_ownership) 
+data_grouped <- data_grouped[!duplicated(data_grouped$person_home_ownership), ]
+
+# Assign row names
+rownames(data_grouped) <- data_grouped$person_home_ownership
+data_grouped <- data_grouped[, -1]
+
+data_grouped <- as.data.frame(data_grouped)
+print(data_grouped)
+```
+
+```{r}
+data$person_home_ownership <- as.factor(data$person_home_ownership)
+data$person_income <- as.numeric(data$person_income)
+data$loan_amnt <- as.numeric(data$loan_amnt)
+data$cb_person_cred_hist_length <- as.numeric(data$cb_person_cred_hist_length)
+str(data)
+
+```
+
+# Hierarchical Clustering 
+```{r}
+
+#Since the dataset is of 446 observations, I am creating a sample data of only first 30 rows of the entire data. 
+sampled_data <- data[sample(nrow(data), 30), ]
+matstd.data <- scale(sampled_data[,-1])
+
+# Creating a (Euclidean) distance matrix of the standardized data                     
+dist.data <- dist(data_grouped, method="euclidean")
+colnames(dist.data) <- rownames(dist.data)
+
+# Invoking hclust command (cluster analysis by single linkage method)      
+clusdata.nn <- hclust(dist.data, method = "single")
+
+#dendogram
+#plot(as.dendrogram(clusdata.nn),ylab="Distance between independent variables",
+#     main="Dendrogram. People employed in nine industry groups \n  from European countries")
+
+options(repr.plot.width=10, repr.plot.height=6)  # Adjust the plot size as needed
+plot(as.dendrogram(clusdata.nn), ylab="Distance between Groups",
+     main="Dendrogram. Loan Borrower in 4 homeowners group")
+
+
+```
+
+
+```{r}
+(agn.data <- agnes(data_grouped, metric="euclidean", stand=TRUE, method = "single"))
+
+plot(as.dendrogram(agn.data), xlab= "Distance between Groups",xlim=c(8,0),
+     horiz = TRUE,main="Dendrogram \n Loan Borrower in 4 homeowners group")
+```
+For the hierarchical clustering method
+Reading from top to bottom, I think the optimal number of clusters are 4. 
+Reason- From the dendrogram we can see that the clusters are divided into 2 groups in first break. Then the second break is divided into 2 more breaks. That is 3 clusters. 
+But the optimal would be 4 clusters. First cluster + 2nd cluster i.e many cluster in one + 3rd cluster + 4th cluster
+
+
+# Non-hierarchical clustering/ K-means clustering 
+```{r}
+# K-means, k=2, 3, 4, 5, 6
+# Centers (k's) are numbers thus, 10 random sets are chosen
+
+(kmeans2.data <- kmeans(matstd.data,2,nstart = 10))
+```
+
+```{r}
+# Computing the percentage of variation accounted for. Two clusters
+perc.var.2 <- round(100*(1 - kmeans2.data$betweenss/kmeans2.data$totss),1)
+names(perc.var.2) <- "Perc. 2 clus"
+perc.var.2
+```
+
+
+```{r}
+# Computing the percentage of variation accounted for. Three clusters
+(kmeans3.data <- kmeans(matstd.data,3,nstart = 10))
+perc.var.3 <- round(100*(1 - kmeans3.data$betweenss/kmeans3.data$totss),1)
+names(perc.var.3) <- "Perc. 3 clus"
+perc.var.3
+```
+
+
+```{r}
+# Computing the percentage of variation accounted for. Four clusters
+(kmeans4.data <- kmeans(matstd.data,4,nstart = 10))
+perc.var.4 <- round(100*(1 - kmeans4.data$betweenss/kmeans4.data$totss),1)
+names(perc.var.4) <- "Perc. 4 clus"
+perc.var.4
+```
+
+
+```{r}
+# Computing the percentage of variation accounted for. Five clusters
+(kmeans5.data <- kmeans(matstd.data,5,nstart = 10))
+perc.var.5 <- round(100*(1 - kmeans5.data$betweenss/kmeans5.data$totss),1)
+names(perc.var.5) <- "Perc. 5 clus"
+perc.var.5
+```
+
+
+```{r}
+# Computing the percentage of variation accounted for. Six clusters
+(kmeans6.data <- kmeans(matstd.data,6,nstart = 10))
+perc.var.6 <- round(100*(1 - kmeans6.data$betweenss/kmeans6.data$totss),1)
+names(perc.var.6) <- "Perc. 6 clus"
+perc.var.6
+attributes(perc.var.6)
+```
+```{r}
+# Computing the percentage of variation accounted for. Seven clusters
+(kmeans7.data <- kmeans(matstd.data,7,nstart = 10))
+perc.var.7 <- round(100*(1 - kmeans7.data$betweenss/kmeans7.data$totss),1)
+names(perc.var.7) <- "Perc. 7 clus"
+perc.var.7
+```
+
+```{r}
+# Computing the percentage of variation accounted for. Eight clusters
+(kmeans8.data <- kmeans(matstd.data,8,nstart = 10))
+perc.var.8 <- round(100*(1 - kmeans8.data$betweenss/kmeans8.data$totss),1)
+names(perc.var.8) <- "Perc. 8 clus"
+perc.var.8
+```
+```{r}
+# Computing the percentage of variation accounted for. Nine clusters
+(kmeans9.data <- kmeans(matstd.data,9,nstart = 10))
+perc.var.9 <- round(100*(1 - kmeans9.data$betweenss/kmeans9.data$totss),1)
+names(perc.var.9) <- "Perc. 9 clus"
+perc.var.9
+```
+```{r}
+# Computing the percentage of variation accounted for. Ten clusters
+(kmeans10.data <- kmeans(matstd.data,10,nstart = 10))
+perc.var.10 <- round(100*(1 - kmeans10.data$betweenss/kmeans10.data$totss),1)
+names(perc.var.10) <- "Perc. 6 clus"
+perc.var.10
+```
+
+```{r}
+
+Variance_List <- c(perc.var.2,perc.var.3,perc.var.4,perc.var.5,perc.var.6,perc.var.7,perc.var.8,perc.var.9,perc.var.10)
+
+Variance_List
+plot(Variance_List)
+```
+
+Insight: 
+With k-means clustering, I think having 7 clusters is the optimal option. 
+Reason- from the plot we can see that the curve of the line/slope starts to decrease significantly from 7-8 compared to all points before 7. Here we can also see, as we go on increasing the number of clusters the variance decreases. 
+Cluster 7 computes ~85% of variance
+(between_SS / total_SS =  84.8 %)
+
+```{r}
+optimal_num_clusters <- 7
+
+#K-means clustering with the optimal number of clusters
+kmeans_model <- kmeans(matstd.data, optimal_num_clusters, nstart = 10)
+
+cluster_membership <- kmeans_model$cluster
+
+# Print the cluster membership for each data point
+print(cluster_membership)
+
+# Scatter plot of the data with clusters colored by membership
+plot(matstd.data[, 1], matstd.data[, 2], 
+     col = kmeans_model$cluster, pch = 16, 
+     xlab = "Variable 1", ylab = "Variable 2",
+     main = "K-means Clustering")
+
+# Adding cluster centers to the plot
+points(kmeans_model$centers[, 1], kmeans_model$centers[, 2], col = 1:optimal_num_clusters, pch = 3, cex = 2)
+
+# Adding legend
+legend("topleft", legend = paste("C", 1:optimal_num_clusters), col = 1:optimal_num_clusters, pch = 16, cex = 0.8, title = "Clusters")
+```
+
+```{r}
+gap_stat <- clusGap(matstd.data, FUN = kmeans, nstart = 1, K.max = 10, B = 50)
+
+fviz_gap_stat(gap_stat)
+
+
+```
+Insight: The optimal number of clusters k according to computer are 3. 
+#Every time I run the code the value changes or number of cluster changes, as we are taking a random sample of 30 rows from our dataset. 
+
+
+# My Optimal number of cluster according to k-means
+```{r}
+set.seed(123)
+## Perform K-means clustering
+km.res7 <- kmeans(matstd.data, 3, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res7, data = matstd.data,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+ 
+# Optimal number of clusters according to computer using k-means
+```{r}
+km.res8 <- kmeans(matstd.data, 5, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res8, data = matstd.data,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+# My optimal number of clusters according to hierarchical clustering
+```{r}
+km.res4 <- kmeans(matstd.data, 4, nstart = 25)  
+# Visualize clusters
+fviz_cluster(km.res4, data = matstd.data,  
+             ellipse.type = "convex",
+             palette = "jco",
+             ggtheme = theme_minimal())
+```
+
+```{r}
+# Perform Hierarchical Clustering
+res.hc <- matstd.data %>% scale() %>% dist(method = "euclidean") %>%
+  hclust(method = "ward.D2")  # Change matstd.data to your dataset
+
+# Visualize the Dendrogram
+fviz_dend(res.hc, k = 4,  # Cut in four groups
+          cex = 0.5,  # label size
+          k_colors = c("#2E9FDF", "#00AFBB", "#E7B800", "#FC4E07"),
+          color_labels_by_k = TRUE,  # color labels by groups
+          rect = TRUE)
+```
+# Factor analysis 
+---
+title: "Factor analysis"
+output: html_document
+date: "2024-03-24"
+---
+
+```{r}
+
+# Factor Analysis
+
+library(psych)
+
+#sampled_data <- data[sample(nrow(data), 30), ]
+matstd.data <- scale(sampled_data[,-1])
+```
+
+Q. Decide how many Factors are ideal for your dataset?
+
+```{r}
+set.seed(123)
+fa.parallel(sampled_data[-1])
+```
+
+Parallel analysis suggests that the number of factors =  3  and the number of components =  2
+
+```{r}
+fit.pc <- principal(sampled_data[-1], nfactors=3, rotate="varimax")
+fit.pc
+```
+
+```{r}
+round(fit.pc$values, 3)
+fit.pc$loadings
+```
+
+Insights: 1.385 1.210 0.947 0.458 are the rounded eigenvalues. 
+Larger eigenvalues suggest that the corresponding principal component explains more variance in the data.
+
+Under each principal component, you have loadings for each original variable.
+Higher absolute values of loadings indicate a stronger correlation between the variable and the principal component.
+
+In short, this output provides information on the variance explained by each principal component(eigenvalues) and the relationship between original variables and these components in the PCA(loadings).
+
+
+```{r}
+fa.plot(fit.pc) # See Correlations within Factors
+
+```
+
+Q. Show the columns that go into each factor 
+
+```{r}
+fa.diagram(fit.pc)
+```
+All the variables are having high impact of RC values(close to 0.9-1). Suggests that they are strongly associated with the underlying factors. 
+This indicates that all the variables contribute significantly to the factors extracted by the analysis.
+
+Q. Perform some visualizations using the factors 
+
+```{r}
+vss(sampled_data[-1])
+```
+
+```{r}
+biplot(fit.pc)
+
+```
+
+
+# Regression
+
+---
+title: "Loan data- Multiple regression"
+output: html_document
+date: "2024-04-15"
+---
+1. Model Development
+```{r}
+#loan_data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+#str(loan_data)
+
+loan_data <- dataset_clean
+#loan_data_numeric <- as.data.frame(sapply(loan_data, as.numeric))
+model_fit <- lm(loan_status ~ person_income + loan_amnt + loan_int_rate + cb_person_cred_hist_length + cb_person_default_on_file, data = loan_data)
+summary(model_fit)
+coefficients(model_fit)
+
+```
+
+Intercept: indicates the estimated value of the dependent variable (loan_status) when all predictor variables are zero. 0.6091.
+
+For a one-unit increase in person_income, the expected change in loan_status is a decrease of approximately 0.00000457.
+Very low p-value (< 0.001), i.e has a significant effect. 
+
+For a one-unit increase in loan_amnt, the expected change in loan_status is an increase of approximately 0.00001073. 
+very low p-value (< 0.001), i.e significant effect. 
+
+For a one-unit increase in loan_int_rate, the expected change in loan_status is an increase of approximately 0.02467. 
+very low p-value (< 0.001), i.e significant effect. 
+
+For a one-unit increase in cb_person_cred_hist_length, the expected change in loan_status is a decrease of approximately 0.03373. 
+p-value for this coefficient is 0.107, i.e not statistically significant. 
+
+For cb_person_default_on_file set to 'Y' (yes) results in an increase of approximately 0.00972 in the expected value of loan_status. 
+p-value for this coefficient is 0.828, i.e not statistically significant. 
+
+The Adjusted R-squared value is approximately 0.4764, indicating that the model explains about 47.64% of the variability in loan_status.
+The F-statistic is 81.99 with a p-value < 0.001, indicating that the overall model is statistically significant.
+
+loan_status has statistically significant predictors (person_income, loan_amnt, and loan_int_rate). However, some predictors (cb_person_cred_hist_length and cb_person_default_on_fileY) are not statistically significant. 
+
+
+2. Model Acceptance
+```{r}
+# Assess the acceptance of the model
+# Check R-squared and adjusted R-squared
+r_squared <- summary(model_fit)$r.squared
+adj_r_squared <- summary(model_fit)$adj.r.squared
+cat("R-squared:", r_squared, "\n")
+cat("Adjusted R-squared:", adj_r_squared, "\n")
+
+# Check the F-statistic and its p-value
+f_statistic <- summary(model_fit)$fstatistic
+f_statistic_value <- f_statistic[1]
+f_statistic_p_value <- pf(f_statistic_value, f_statistic[2], f_statistic[3], lower.tail = FALSE)
+cat("F-statistic:", f_statistic_value, "\n")
+cat("p-value:", f_statistic_p_value, "\n")
+```
+R-squared (0.4823) indicates that approximately 48.23% of the variability in the dependent variable (loan_status) is explained by the model.
+Adjusted R-squared (0.4764) adjusts the R-squared value for the number of predictors in the model. It is slightly lower than R-squared, suggesting that adding more predictors may not significantly improve the model's explanatory power.
+
+The F-statistic (81.98651) tests the overall significance of the model. It compares the fit of the model with no predictors (null model) against the fit of the current model.
+The associated p-value (1.039549e-60) is extremely low, indicating strong evidence against the null hypothesis (that the model has no predictive power).
+
+However,  the model appears to have some predictive power and explanatory value, there may be opportunities to refine the model by considering additional predictors or exploring alternative modeling techniques.
+
+
+3. Residual Analysis 
+```{r}
+# Select only numeric variables from loan_data
+numeric_loan_data <- loan_data[, sapply(loan_data, is.numeric)]
+# Plot pairs
+pairs(numeric_loan_data, main = "Loan Data")
+confint(model_fit,level=0.95)
+fitted(model_fit)
+residuals(model_fit)
+
+# Plot residuals vs. fitted values
+plot(model_fit, which = 1)
+
+# Plot normal Q-Q plot of residuals
+plot(model_fit, which = 2)
+```
+
+We see the points are not always normally distributed. 
+
+4. Prediction
+```{r}
+# Make predictions
+predictions <- predict(model_fit, newdata = loan_data)
+
+# Print predictions
+print(predictions)
+```
+
+Each predicted weight represents the estimated weight of loan i.e if a person gets it or not, based on its corresponding values of the predictor variables (person_income + loan_amnt + loan_int_rate + cb_person_cred_hist_length + cb_person_default_on_file) as per the fitted regression model.
+
+5. Model Accuracy
+```{r}
+# Calculate Mean Squared Error (MSE)
+mse <- mean(model_fit$residuals^2)
+
+# Calculate Root Mean Squared Error (RMSE)
+rmse <- sqrt(mse)
+
+# Calculate Mean Absolute Error (MAE)
+mae <- mean(abs(model_fit$residuals))
+
+# Print the accuracy metrics
+cat("Mean Squared Error (MSE):", mse, "\n")
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+cat("Mean Absolute Error (MAE):", mae, "\n")
+```
+The MSE is 0.127923, on average, the squared difference between the observed and predicted values. 
+
+The RMSE is 0.3576632, suggesting that, on average, the difference between the actual and predicted values.
+
+The MAE is 0.2890811, indicating that, on average, the absolute difference between the actual and predicted values. 
+
+Lower values of MSE, RMSE, and MAE indicate better model performance, with smaller differences between actual and predicted values.
+
+
+```{r}
+#Anova Table
+anova(model_fit)
+vcov(model_fit)
+cov2cor(vcov(model_fit))
+temp <- influence.measures(model_fit)
+temp
+plot(model_fit)
+
+anova_result <- anova(model_fit)
+print(anova_result)
+```
+
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r}
+library(ggplot2)
+library(cowplot)
+library(caret)
+library(e1071)
+library(pROC)
+loan_data <- read.csv("C:/Users/rusha/Downloads/Multivariate/credit_risk_dataset.csv/credit_risk_dataset.csv")
+loan_data
+str(loan_data)
+```
+
+```{r}
+sapply(loan_data, function(x) any(is.na(x)))
+#converting loan_grade and cb_person_default_on_file as factor
+loan_data$loan_grade <- as.factor(loan_data$loan_grade)
+loan_data$cb_person_default_on_file <- as.factor(loan_data$cb_person_default_on_file)
+
+#loan_status
+loan_data[loan_data$loan_status == 0,]$loan_status <- "Approved"
+loan_data[loan_data$loan_status == 1,]$loan_status <- "Not-Approved"
+loan_data$loan_status <- as.factor(loan_data$loan_status)
+```
+
+```{r}
+## Now determine how many rows have "NA" (aka "Missing data")
+nrow(loan_data[is.na(loan_data$person_emp_length) | is.na(loan_data$loan_int_rate),])
+```
+
+```{r}
+loan_data[is.na(loan_data$person_emp_length) | is.na(loan_data$loan_int_rate),]
+```
+
+
+```{r}
+##We see the column loan_int_rate has more missing values than person_emp_length
+#dropping rows
+loan_data <- loan_data[!(is.na(loan_data$loan_int_rate) | is.na(loan_data$person_emp_length)),]
+nrow(loan_data)
+```
+1) Model Development
+```{r}
+## Exploratory Analysis
+xtabs(~ loan_status + person_age, data=loan_data)
+```
+High chances of loan approval as you get older. (24-26)
+
+```{r}
+#Removing 2 observed values of age 144. Outliers
+hist(loan_data$person_age, main = "Histogram of Person Age")
+loan_data$z_score_age <- scale(loan_data$person_age)
+# Define threshold
+threshold <- 3
+
+# Remove outliers based on threshold
+loan_data <- loan_data[abs(loan_data$z_score_age) <= threshold, ]
+
+# Remove the z_score_age column as it's no longer needed
+loan_data$z_score_age <- NULL
+
+# Check the dimensions of the filtered data
+dim(loan_data)
+```
+
+```{r}
+xtabs(~ loan_status + person_age, data=loan_data)
+```
+
+```{r}
+#xtabs(~ loan_status + person_income, data=loan_data)
+```
+
+
+```{r}
+xtabs(~ loan_status + person_emp_length, data=loan_data)
+```
+Employement length not big of a difference 
+
+```{r}
+xtabs(~ loan_status + loan_amnt, data=loan_data)
+```
+
+```{r}
+#xtabs(~ loan_status + loan_int_rate, data=loan_data)
+```
+
+```{r}
+xtabs(~ loan_status + loan_percent_income, data=loan_data)
+```
+More individuals are successfully obtaining loans when the loan amount represents a lower percentage of their income compared to those applying for loans exceeding their income. 
+
+```{r}
+xtabs(~ loan_status + cb_person_cred_hist_length, data=loan_data)
+```
+Practically, Credit history does matter but the data is not showing any significant difference. 
+
+```{r}
+xtabs(~ loan_status + loan_grade, data=loan_data)
+```
+Loans are readily accessible for individuals classified under Grade A and B. Grade C applicants have a 50/50 chance of approval. However, for grades below D, the likelihood of obtaining a loan is significantly diminished.
+
+```{r}
+xtabs(~ loan_status + cb_person_default_on_file, data=loan_data)
+```
+People with defaults have significantly lower chances of getting a loan. 
+
+```{r}
+str(loan_data)
+```
+
+```{r}
+logistic_simple <- glm(loan_status ~ person_age, data=loan_data, family="binomial")
+summary(logistic_simple)
+```
+
+check for intercept and person_age coefficient 
+check for low AIC score
+check for *** ie significant 
+
+According to the model output person_income is significantly important.
+AIC scores 
+
+```{r}
+logistic_simple1 <- glm(loan_status ~ person_age + person_income + cb_person_cred_hist_length + cb_person_default_on_file, data=loan_data, family="binomial")
+summary(logistic_simple1)
+```
+
+The intercept is the log(odds) a person will receive loan based on age. 
+```{r}
+## The intercept is the log(odds) a female will be unhealthy. This is because
+## female is the first factor in "sex" (the factors are ordered,
+## alphabetically by default,"female", "male")
+## Now let's look at the second coefficient...
+##   sexM        1.2737     0.2725   4.674 2.95e-06 ***
+##
+## sexM is the log(odds ratio) that tells us that if a sample has sex=M, the
+## odds of being unhealthy are, on a log scale, 1.27 times greater than if
+## a sample has sex=F.
+#female.log.odds <- log(25 / 71)
+#female.log.odds
+# Now you know how these are calculated
+#male.log.odds.ratio <- log((112 / 89) / (25/71))
+#male.log.odds.ratio
+```
+
+
+2) Model Acceptance 
+```{r}
+#let's  see what this logistic regression predicts
+predicted.data <- data.frame(probability.of.loan_status=logistic_simple$fitted.values,age=loan_data$person_age)
+predicted.data
+```
+
+
+```{r}
+# We can plot the data
+#ggplot(data=predicted.data ,aes(x=age, y=probability.of.loan_status))+ geom_point(aes(color=age), size=5) + xlab("Age") + ylab("Predicted probability of getting a loan")
+
+xtabs(~ probability.of.loan_status + age, data=predicted.data)
+
+```
+33 observations at age of 21 and probability of loan is 25%
+57 observations at age of 22 and probability of loan is 31%
+94 observations at age of 23 and probability of loan is 38%
+96 observations at age of 24 and probability of loan is 45%
+92 observations at age of 25 and probability of loan is 53%
+
+# The highest probability of getting a loan accepted is at the age of 25.  
+
+3) Residual Analysis and Prediction
+```{r}
+logistic <- glm(loan_status ~ ., data=loan_data, family="binomial")
+summary(logistic)
+```
+
+```{r}
+predicted.data <- data.frame(probability.of.ls=logistic$fitted.values,ls=loan_data$loan_status)
+predicted.data <- predicted.data[order(predicted.data$probability.of.ls, decreasing=FALSE),]
+predicted.data$rank <- 1:nrow(predicted.data)
+## Lastly, we can plot the predicted probabilities for each sample having
+## heart disease and color by whether or not they actually had heart disease
+ggplot(data=predicted.data, aes(x=rank, y=probability.of.ls)) +
+geom_point(aes(color=ls), alpha=1, shape=4, stroke=2) +
+xlab("Index") +
+ylab("Predicted probability of getting a loan")
+```
+
+5) Model Accuracy 
+```{r}
+# Confusion matrix
+conf_mat <- table(Actual = loan_data$loan_status, Predicted = ifelse(logistic$fitted.values > 0.5, "Approved", "Not-Approved"))
+print(conf_mat)
+
+# Calculate accuracy
+accuracy <- sum(diag(conf_mat)) / sum(conf_mat)
+print(paste("Accuracy:", accuracy))
+
+# ROC curve
+roc_obj <- roc(loan_data$loan_status, logistic$fitted.values)
+plot(roc_obj, xlab="False Positive Percentage", ylab="True Postive Percentage", legacy.axes=TRUE, col="#377eb8", lwd=4, percent=TRUE, print.auc=TRUE)
+```
+Insights: 
+The model only predicts 18 cases of Approved and 13 cases of not-approved correctly. 
+
+The accuracy of the modelis approximately 7.06%. This indicates that the model's overall predictive accuracy is quite low.
+
+The Area Under the Curve (AUC) is a measure of the model's ability to distinguish between "Approved" and "Not-Approved" loans.
+The AUC value of 0.973 indicates that the model has good discriminatory power.
+
+The model has high AUC value, but poor accuracy, precision, and recall suggesting that it may not be suitable for practical use.
+
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+1) Model development
+```{r}
+library(MASS)
+library(ggplot2)
+library(memisc)
+library(ROCR)
+library(dplyr)
+library(klaR)
+
+
+# Define the breaks for the income ranges
+breaks <- c(0, 25000, 50000, 80000, 120000, 160000, Inf)
+
+# Define labels for the income ranges
+labels <- c("0-25000", "25001-50000", "50001-80000", "80001-120000", "120001-160000", "160001+")
+
+# Discretize the income values into bins
+dataset_clean$person_income <- cut(dataset_clean$person_income, breaks = breaks, labels = labels)
+
+# Check the result
+head(dataset_clean$person_income)
+
+str(dataset_clean)
+```
+
+```{r}
+#wdbc.data <- as.matrix(wdbc[,c(3:32)])
+#row.names(wdbc.data) <- wdbc$id
+#wdbc_raw <- cbind(wdbc.data, as.numeric(as.factor(wdbc$diagnosis))-1)
+#smp_size_raw <- floor(0.75 * nrow(wdbc_raw))
+#train_ind_raw <- sample(nrow(wdbc_raw), size = smp_size_raw)
+#train_raw.df <- as.data.frame(wdbc_raw[train_ind_raw, ])
+#test_raw.df <- as.data.frame(wdbc_raw[-train_ind_raw, ])
+#wdbc_raw.lda <- lda(formula = train_raw.df$diagnosis ~ ., data = train_raw.df)
+#wdbc_raw.lda
+
+# Combine loan data with loan status and income group
+loan.data <- as.matrix(dataset_clean[,c(6:7)])
+loan.data <- cbind(loan.data, loan_status = dataset_clean$loan_status)
+row.names(loan.data) <- dataset_clean$loan_status
+loan_raw <- cbind(loan.data, as.numeric(as.factor(dataset_clean$person_income))-1)
+colnames(loan_raw)[3] <- "income_group"
+# Remove rows with NA values
+loan_raw <- loan_raw[complete.cases(loan_raw), ]
+# Split data into train and test sets
+samp_size_raw <- floor(0.75 * nrow(loan_raw))
+train_loan_raw <- sample(nrow(loan_raw), size = samp_size_raw)
+train_raw.df <- as.data.frame(loan_raw[train_loan_raw, ])
+test_raw.df <- as.data.frame(loan_raw[-train_loan_raw, ])
+# Fit LDA model
+loan_raw.lda <- lda(formula = train_raw.df$income_group ~., data = train_raw.df)
+loan_raw.lda
+```
+
+Insights
+The prior probability of group 0 is approximately 0.43, and the prior probability of group 1 is approximately 0.57, indicating that the training dataset is slightly imbalanced, with more observations belonging to group 1.(i.e loan accepted)
+
+loan_int_rate and loan_percent_income have positive coefficients, suggesting that higher values of these variables are associated with group 1.
+'V4' or 'income_group' has a negative coefficient, indicating that higher values of V4 are associated with group 0.
+
+```{r}
+plot(loan_raw.lda, xlab = "Predicted Group")
+```
+
+
+```{r}
+#wdbc_raw.lda.predict <- predict(wdbc_raw.lda, newdata = test_raw.df)
+#wdbc_raw.lda.predict$class
+#wdbc_raw.lda.predict$x
+
+#loan_raw.lda.predict <- predict(loan_raw.lda, newdata = test_raw.df)
+#loan_raw.lda.predict$class
+#loan_raw.lda.predict$x
+
+# Remove NA values from the data frame
+clean_test_raw.df <- na.omit(test_raw.df)
+
+# Perform prediction with LDA
+loan_raw.lda.predict <- predict(loan_raw.lda, newdata = clean_test_raw.df)
+
+# Access predicted class
+loan_raw.lda.predict$class
+
+# Access LD scores
+loan_raw.lda.predict$x
+```
+
+```{r}
+# Get the posteriors as a dataframe.
+loan_raw.lda.predict.posteriors <- as.data.frame(loan_raw.lda.predict$posterior)
+
+pred <- prediction(loan_raw.lda.predict.posteriors[,2], test_raw.df$income_group)
+roc.perf = performance(pred, measure = "tpr", x.measure = "fpr")
+auc.train <- performance(pred, measure = "auc")
+auc.train <- auc.train@y.values
+plot(roc.perf)
+abline(a=0, b= 1)
+text(x = .25, y = .65 ,paste("AUC = ", round(auc.train[[1]],3), sep = ""))
+
+# The AUC value will be different everytime we compute the code as we are taking random sample for test and train model.
+```
+
